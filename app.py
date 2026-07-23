@@ -1,28 +1,31 @@
+import streamlit as st
+import pandas as pd
+import numpy as np
 import joblib
 import matplotlib.pyplot as plt
-import numpy as np
-import pandas as pd
-import streamlit as st
+
+from sklearn.model_selection import train_test_split
 from sklearn.metrics import (
+    confusion_matrix,
     ConfusionMatrixDisplay,
     accuracy_score,
-    confusion_matrix,
-    f1_score,
     precision_score,
     recall_score,
+    f1_score
 )
-from sklearn.model_selection import train_test_split
 
 # =====================================================
 # KONFIGURASI HALAMAN
 # =====================================================
 
 st.set_page_config(
-    page_title="UAS Data Mining", page_icon="🩺", layout="wide"
+    page_title="UAS Data Mining",
+    page_icon="🩺",
+    layout="wide"
 )
 
 # =====================================================
-# LOAD MODEL & DATA DENGAN CACHING (OPTIMASI 1)
+# LOAD MODEL & DATA DENGAN CACHING (OPTIMASI UTAMA)
 # =====================================================
 
 @st.cache_resource
@@ -35,62 +38,15 @@ def load_models():
     kmeans_scaler = joblib.load("models/kmeans_scaler.pkl")
     return knn, nb, dt, scaler, kmeans, kmeans_scaler
 
-
 @st.cache_data
 def load_data():
     diabetes = pd.read_csv("Dataset/diabetes.csv")
     cluster = pd.read_csv("Dataset/hasil_cluster.csv")
     return diabetes, cluster
 
-
 # Panggil fungsi cache
 knn, nb, dt, scaler, kmeans, kmeans_scaler = load_models()
 diabetes, cluster = load_data()
-
-# =====================================================
-# CACHING KALKULASI EVALUASI MODEL (OPTIMASI UTAMA)
-# =====================================================
-
-@st.cache_data
-def get_evaluation_metrics(_diabetes, _scaler, _knn, _nb, _dt):
-    X = _diabetes.drop("Outcome", axis=1)
-    y = _diabetes["Outcome"]
-
-    X_train, X_test, y_train, y_test = train_test_split(
-        X, y, test_size=0.2, random_state=42
-    )
-
-    X_test_scaled = _scaler.transform(X_test)
-
-    pred_knn = _knn.predict(X_test_scaled)
-    pred_nb = _nb.predict(X_test_scaled)
-    pred_dt = _dt.predict(X_test_scaled)
-
-    hasil_df = pd.DataFrame({
-        "Model": ["KNN", "Naive Bayes", "Decision Tree"],
-        "Accuracy": [
-            round(accuracy_score(y_test, pred_knn), 4),
-            round(accuracy_score(y_test, pred_nb), 4),
-            round(accuracy_score(y_test, pred_dt), 4),
-        ],
-        "Precision": [
-            round(precision_score(y_test, pred_knn), 4),
-            round(precision_score(y_test, pred_nb), 4),
-            round(precision_score(y_test, pred_dt), 4),
-        ],
-        "Recall": [
-            round(recall_score(y_test, pred_knn), 4),
-            round(recall_score(y_test, pred_nb), 4),
-            round(recall_score(y_test, pred_dt), 4),
-        ],
-        "F1-Score": [
-            round(f1_score(y_test, pred_knn), 4),
-            round(f1_score(y_test, pred_nb), 4),
-            round(f1_score(y_test, pred_dt), 4),
-        ],
-    })
-
-    return hasil_df, y_test, pred_knn, pred_nb, pred_dt
 
 # =====================================================
 # SIDEBAR
@@ -105,8 +61,8 @@ menu = st.sidebar.radio(
         "🩺 Prediksi Diabetes",
         "☕ Clustering Gerai Kopi",
         "📊 Evaluasi Model",
-        "ℹ️ Tentang",
-    ],
+        "ℹ️ Tentang"
+    ]
 )
 
 # =====================================================
@@ -126,11 +82,11 @@ if menu == "🏠 Dashboard":
 
     st.markdown("---")
     st.subheader("Dataset Diabetes")
-    st.dataframe(diabetes.head())
+    st.dataframe(diabetes.head(), use_container_width=True)
 
     st.markdown("---")
     st.subheader("Dataset Gerai Kopi")
-    st.dataframe(cluster.head())
+    st.dataframe(cluster.head(), use_container_width=True)
 
     st.markdown("---")
     st.success(
@@ -148,21 +104,18 @@ if menu == "🏠 Dashboard":
 elif menu == "🩺 Prediksi Diabetes":
 
     st.title("🩺 Prediksi Risiko Diabetes")
-    st.markdown(
-        "Masukkan data pasien kemudian pilih algoritma yang ingin digunakan."
-    )
+    st.markdown("Masukkan data pasien kemudian pilih algoritma yang ingin digunakan.")
     st.markdown("---")
 
     model = st.selectbox(
-        "Pilih Algoritma", ("KNN", "Naive Bayes", "Decision Tree")
+        "Pilih Algoritma",
+        ("KNN", "Naive Bayes", "Decision Tree")
     )
 
     col1, col2 = st.columns(2)
 
     with col1:
-        pregnancies = st.number_input(
-            "Pregnancies", min_value=0, max_value=20, value=1
-        )
+        pregnancies = st.number_input("Pregnancies", min_value=0, max_value=20, value=1)
         glucose = st.number_input("Glucose", min_value=0, max_value=300, value=120)
         blood = st.number_input("Blood Pressure", min_value=0, max_value=200, value=70)
         skin = st.number_input("Skin Thickness", min_value=0, max_value=100, value=20)
@@ -170,23 +123,15 @@ elif menu == "🩺 Prediksi Diabetes":
     with col2:
         insulin = st.number_input("Insulin", min_value=0, max_value=900, value=80)
         bmi = st.number_input("BMI", min_value=0.0, max_value=80.0, value=25.0)
-        pedigree = st.number_input(
-            "Diabetes Pedigree Function", min_value=0.0, max_value=5.0, value=0.50
-        )
+        pedigree = st.number_input("Diabetes Pedigree Function", min_value=0.0, max_value=5.0, value=0.50)
         age = st.number_input("Age", min_value=1, max_value=120, value=30)
 
     st.markdown("---")
 
     if st.button("Prediksi Diabetes"):
         data = np.array([[
-            pregnancies,
-            glucose,
-            blood,
-            skin,
-            insulin,
-            bmi,
-            pedigree,
-            age,
+            pregnancies, glucose, blood, skin,
+            insulin, bmi, pedigree, age
         ]])
 
         data = scaler.transform(data)
@@ -218,7 +163,7 @@ elif menu == "🩺 Prediksi Diabetes":
             "Insulin": [insulin],
             "BMI": [bmi],
             "DiabetesPedigreeFunction": [pedigree],
-            "Age": [age],
+            "Age": [age]
         })
 
         st.dataframe(hasil_df, use_container_width=True)
@@ -232,10 +177,42 @@ elif menu == "📊 Evaluasi Model":
 
     st.title("📊 Evaluasi Model Machine Learning")
 
-    # Menggunakan fungsi ber-cache agar tidak menghitung ulang saat ganti menu
-    hasil, y_test, pred_knn, pred_nb, pred_dt = get_evaluation_metrics(
-        diabetes, scaler, knn, nb, dt
+    X = diabetes.drop("Outcome", axis=1)
+    y = diabetes["Outcome"]
+
+    X_train, X_test, y_train, y_test = train_test_split(
+        X, y, test_size=0.2, random_state=42
     )
+
+    X_test = scaler.transform(X_test)
+
+    pred_knn = knn.predict(X_test)
+    pred_nb = nb.predict(X_test)
+    pred_dt = dt.predict(X_test)
+
+    hasil = pd.DataFrame({
+        "Model": ["KNN", "Naive Bayes", "Decision Tree"],
+        "Accuracy": [
+            round(accuracy_score(y_test, pred_knn), 4),
+            round(accuracy_score(y_test, pred_nb), 4),
+            round(accuracy_score(y_test, pred_dt), 4)
+        ],
+        "Precision": [
+            round(precision_score(y_test, pred_knn), 4),
+            round(precision_score(y_test, pred_nb), 4),
+            round(precision_score(y_test, pred_dt), 4)
+        ],
+        "Recall": [
+            round(recall_score(y_test, pred_knn), 4),
+            round(recall_score(y_test, pred_nb), 4),
+            round(recall_score(y_test, pred_dt), 4)
+        ],
+        "F1-Score": [
+            round(f1_score(y_test, pred_knn), 4),
+            round(f1_score(y_test, pred_nb), 4),
+            round(f1_score(y_test, pred_dt), 4)
+        ]
+    })
 
     st.subheader("Perbandingan Model")
     st.dataframe(hasil, use_container_width=True)
@@ -248,7 +225,6 @@ elif menu == "📊 Evaluasi Model":
     ax.set_ylim(0, 1)
     ax.set_ylabel("Accuracy")
     st.pyplot(fig)
-    plt.close(fig)  # Bebaskan memori server
 
     st.markdown("---")
     pilihan = st.selectbox("Pilih Model", ("KNN", "Naive Bayes", "Decision Tree"))
@@ -264,7 +240,6 @@ elif menu == "📊 Evaluasi Model":
     disp = ConfusionMatrixDisplay(confusion_matrix=cm)
     disp.plot(ax=ax2)
     st.pyplot(fig2)
-    plt.close(fig2)  # Bebaskan memori server
 
     st.success("Evaluasi model berhasil ditampilkan.")
 
@@ -294,7 +269,7 @@ elif menu == "☕ Clustering Gerai Kopi":
             data_cluster["y"],
             s=50,
             color=warna[i % len(warna)],
-            label=f"Cluster {i}",
+            label=f"Cluster {i}"
         )
 
     ax.set_xlabel("X")
@@ -302,7 +277,6 @@ elif menu == "☕ Clustering Gerai Kopi":
     ax.set_title("Hasil Clustering Gerai Kopi")
     ax.legend()
     st.pyplot(fig)
-    plt.close(fig)  # Bebaskan memori server
 
     st.markdown("---")
     st.subheader("Prediksi Lokasi Baru")
@@ -320,7 +294,9 @@ elif menu == "☕ Clustering Gerai Kopi":
         commercial = st.selectbox("Commercial Area", [0, 1])
 
     if st.button("Prediksi Cluster"):
-        data_baru = np.array([[x, y, population, traffic, competitor, commercial]])
+        data_baru = np.array([[
+            x, y, population, traffic, competitor, commercial
+        ]])
 
         data_baru = kmeans_scaler.transform(data_baru)
         hasil = kmeans.predict(data_baru)[0]
@@ -328,10 +304,8 @@ elif menu == "☕ Clustering Gerai Kopi":
         st.success(f"Lokasi termasuk Cluster {hasil}")
 
         # Mencari kolom traffic secara dinamis agar aman dari error KeyError
-        traffic_col = next(
-            (col for col in cluster.columns if "traffic" in col.lower()), None
-        )
-
+        traffic_col = next((col for col in cluster.columns if 'traffic' in col.lower()), None)
+        
         if traffic_col:
             rata = cluster.groupby("Cluster")[traffic_col].mean()
             cluster_sepi = rata.idxmin()
@@ -354,31 +328,31 @@ elif menu == "ℹ️ Tentang":
 
     st.title("ℹ️ Tentang Aplikasi")
     st.markdown("""
-        ## Implementasi Supervised dan Unsupervised Learning
+    ## Implementasi Supervised dan Unsupervised Learning
 
-        **Mata Kuliah**
-        Data Mining
+    **Mata Kuliah**
+    Data Mining
 
-        **Algoritma Klasifikasi**
-        - K-Nearest Neighbor
-        - Naive Bayes
-        - Decision Tree
+    **Algoritma Klasifikasi**
+    - K-Nearest Neighbor
+    - Naive Bayes
+    - Decision Tree
 
-        **Algoritma Clustering**
-        - K-Means
+    **Algoritma Clustering**
+    - K-Means
 
-        **Dataset**
-        - Pima Indians Diabetes
-        - Coffee Shop Location Dataset
+    **Dataset**
+    - Pima Indians Diabetes
+    - Coffee Shop Location Dataset
 
-        **Tools**
-        - Python
-        - Streamlit
-        - Scikit-Learn
-        - Pandas
-        - Matplotlib
+    **Tools**
+    - Python
+    - Streamlit
+    - Scikit-Learn
+    - Pandas
+    - Matplotlib
 
-        Aplikasi ini dibuat untuk memenuhi tugas **Ujian Akhir Semester (UAS) Data Mining**.
-        """)
+    Aplikasi ini dibuat untuk memenuhi tugas **Ujian Akhir Semester (UAS) Data Mining**.
+    """)
 
     st.success("Terima kasih telah menggunakan aplikasi ini.")
